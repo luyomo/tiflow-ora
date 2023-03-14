@@ -19,6 +19,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"fmt"
 
 	"github.com/pingcap/errors"
 	"github.com/pingcap/failpoint"
@@ -322,6 +323,7 @@ func (s *ddlSinkImpl) emitDDLEvent(ctx context.Context, ddl *model.DDLEvent) (bo
 	}
 	s.mu.Unlock()
 
+	log.Info("DDL event check", zap.String("ddl event", fmt.Sprintf("%#v", ddl)  ))
 	ddlSentTs := s.ddlSentTsMap[ddl]
 	if ddl.CommitTs <= ddlSentTs {
 		log.Debug("ddl is not finished yet",

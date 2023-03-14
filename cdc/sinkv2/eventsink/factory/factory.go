@@ -17,6 +17,9 @@ import (
 	"context"
 	"strings"
 
+	"github.com/pingcap/log"
+	"go.uber.org/zap"
+
 	"github.com/pingcap/tiflow/cdc/model"
 	"github.com/pingcap/tiflow/cdc/processor/tablepb"
 	"github.com/pingcap/tiflow/cdc/sinkv2/eventsink"
@@ -50,6 +53,7 @@ func New(ctx context.Context,
 	cfg *config.ReplicaConfig,
 	errCh chan error,
 ) (*SinkFactory, error) {
+	log.Warn("oracle url in sink new", zap.String("url", sinkURIStr ) )
 	sinkURI, err := config.GetSinkURIAndAdjustConfigWithSinkURI(sinkURIStr, cfg)
 	if err != nil {
 		return nil, err
@@ -60,6 +64,13 @@ func New(ctx context.Context,
 	switch schema {
 	case sink.MySQLScheme, sink.MySQLSSLScheme, sink.TiDBScheme, sink.TiDBSSLScheme:
 		txnSink, err := txn.NewMySQLSink(ctx, sinkURI, cfg, errCh, txn.DefaultConflictDetectorSlots)
+		if err != nil {
+			return nil, err
+		}
+		s.txnSink = txnSink
+		s.sinkType = sink.TxnSink
+	case sink.OracleScheme:
+		txnSink, err := txn.NewOracleSink(ctx, sinkURI, cfg, errCh, txn.DefaultConflictDetectorSlots)
 		if err != nil {
 			return nil, err
 		}

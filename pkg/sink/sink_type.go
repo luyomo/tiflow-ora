@@ -47,6 +47,8 @@ const (
 	MySQLSSLScheme = "mysql+ssl"
 	// TiDBScheme indicates the scheme is TiDB.
 	TiDBScheme = "tidb"
+	// TiDBScheme indicates the scheme is TiDB.
+	OracleScheme = "oracle"
 	// TiDBSSLScheme indicates the scheme is TiDB+ssl.
 	TiDBSSLScheme = "tidb+ssl"
 	// S3Scheme indicates the scheme is s3.
@@ -74,6 +76,11 @@ func IsMQScheme(scheme string) bool {
 func IsMySQLCompatibleScheme(scheme string) bool {
 	return scheme == MySQLScheme || scheme == MySQLSSLScheme ||
 		scheme == TiDBScheme || scheme == TiDBSSLScheme
+}
+
+// IsOracleCompatibleScheme returns true if the scheme is compatible with ORACLE.
+func IsOracleCompatibleScheme(scheme string) bool {
+	return scheme == OracleScheme
 }
 
 // IsStorageScheme returns true if the scheme belong to storage scheme.
