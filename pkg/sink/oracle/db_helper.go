@@ -18,12 +18,12 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"fmt"
-	"net"
+//	"net"
 	"net/url"
-//	"strconv"
+	"strconv"
 
 	dmysql "github.com/go-sql-driver/mysql"
-        _ "github.com/sijms/go-ora/v2"
+        go_ora "github.com/sijms/go-ora/v2"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/log"
 //	"github.com/pingcap/tidb/parser/charset"
@@ -39,7 +39,7 @@ func CreateOracleDBConn(ctx context.Context, dsnStr string) (*sql.DB, error) {
 	dsnStr = "oracle://admin:1234Abcd@tidb2ora.cxmxisy1o2a2.us-east-1.rds.amazonaws.com:1521/dev"
 	db, err := sql.Open("oracle", dsnStr)
 	if err != nil {
-		return nil, cerror.ErrMySQLConnectionError.Wrap(err).GenWithStack("fail to open MySQL connection")
+		return nil, cerror.ErrMySQLConnectionError.Wrap(err).GenWithStack("fail to open Oracle connection")
 	}
 
 	err = db.PingContext(ctx)
@@ -48,7 +48,7 @@ func CreateOracleDBConn(ctx context.Context, dsnStr string) (*sql.DB, error) {
 		if closeErr := db.Close(); closeErr != nil {
 			log.Warn("close db failed", zap.Error(err))
 		}
-		return nil, cerror.ErrMySQLConnectionError.Wrap(err).GenWithStack("fail to open MySQL connection")
+		return nil, cerror.ErrMySQLConnectionError.Wrap(err).GenWithStack("fail to open Oracle connection")
 	}
 
 	return db, nil
@@ -58,17 +58,38 @@ func CreateOracleDBConn(ctx context.Context, dsnStr string) (*sql.DB, error) {
 func GenerateDSN(ctx context.Context, sinkURI *url.URL, cfg *Config, dbConnFactory Factory) (dsnStr string, err error) {
 	// dsn format of the driver:
 	// [username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]
-	dsn, err := GenBasicDSN(sinkURI, cfg)
+	oraCfg, err := GenBasicDSN(sinkURI, cfg)
 	if err != nil {
 		return "", err
 	}
 
-	var testDB *sql.DB
-	testDB, err = GetTestDB(ctx, dsn, dbConnFactory)
-	if err != nil {
-		return
+	username := sinkURI.User.Username()
+	if username == "" {
+		username = "admin"
 	}
-	defer testDB.Close()
+	password, _ := sinkURI.User.Password()
+
+	hostName := sinkURI.Hostname()
+	portStr := sinkURI.Port()
+	if portStr == "" {
+		portStr = "1521"
+	}
+	port, err := strconv.Atoi(portStr)
+	if err != nil {
+		return "", err
+	}
+
+	dnsStr := go_ora.BuildUrl(hostName, port, sinkURI.Path, username, password, *oraCfg)  // go-ora
+	log.Info("oracle connection before return", zap.String("oracle", dnsStr))
+//	return "oracle://admin:1234Abcd@tidb2ora.cxmxisy1o2a2.us-east-1.rds.amazonaws.com:1521/dev", nil
+        return dnsStr, nil
+
+	//var testDB *sql.DB
+	//testDB, err = GetTestDB(ctx, dsn, dbConnFactory)
+	//if err != nil {
+	//	return
+	//}
+	//defer testDB.Close()
 
 	// Adjust sql_mode for compatibility.
 //	dsn.Params["sql_mode"], err = querySQLMode(ctx, testDB)
@@ -100,7 +121,6 @@ func GenerateDSN(ctx context.Context, sinkURI *url.URL, cfg *Config, dbConnFacto
 //	}
 //
 //	return
-	return "oracle://admin:1234Abcd@tidb2ora.cxmxisy1o2a2.us-east-1.rds.amazonaws.com:1521/dev", nil
 }
 
 //func generateDSNByConfig(
@@ -255,42 +275,60 @@ func GetTestDB(ctx context.Context, dbConfig *dmysql.Config, dbConnFactory Facto
 }
 
 // GenBasicDSN generates a basic DSN from the given config.
-func GenBasicDSN(sinkURI *url.URL, cfg *Config) (*dmysql.Config, error) {
+func GenBasicDSN(sinkURI *url.URL, cfg *Config) (*map[string]string, error) {
 	// dsn format of the driver:
 	// [username[:password]@][protocol[(address)]]/dbname[?param1=value1&...&paramN=valueN]
-	username := sinkURI.User.Username()
-	if username == "" {
-		username = "root"
-	}
-	password, _ := sinkURI.User.Password()
 
-	hostName := sinkURI.Hostname()
-	port := sinkURI.Port()
-	if port == "" {
-		port = "4000"
-	}
+//	username := sinkURI.User.Username()
+        config := make(map[string]string)
+
+//	if sinkURI.User.Username() == "" {
+//		*sinkURI.User.Username = "admin"
+//	}
+//	password, _ := sinkURI.User.Password()
+//
+//	hostName := sinkURI.Hostname()
+//	strPort, _ := sinkURI.Port()
+//	if strPort == "" {
+////		strPort = "1521"
+//	        *sinkURI.Port = "1521"
+//	}
+
+        config["FAILOVER"] = "5"
+
+        return &config, nil
+//	port, err := strconv.Atoi(strPort)
+//	if err != nil {
+//	    return nil, nil, err
+//	}
+
+//	dns := go_ora.BuildUrl(hostName, port, sinkURI.Path, username, password, nil)  // go-ora
+//	log.Info("Generated oracle dsn: ", zap.String("oracle", dns))
+
+        //return nil, nil, error
+
 
 	// This will handle the IPv6 address format.
-	var dsn *dmysql.Config
-	var err error
-	host := net.JoinHostPort(hostName, port)
-	dsnStr := fmt.Sprintf("%s:%s@tcp(%s)/%s", username, password, host, cfg.TLS)
-	if dsn, err = dmysql.ParseDSN(dsnStr); err != nil {
-		return nil, errors.Trace(err)
-	}
-
-	// create test db used for parameter detection
-	// Refer https://github.com/go-sql-driver/mysql#parameters
-	if dsn.Params == nil {
-		dsn.Params = make(map[string]string, 1)
-	}
-	if cfg.Timezone != "" {
-		dsn.Params["time_zone"] = cfg.Timezone
-	}
-	dsn.Params["readTimeout"] = cfg.ReadTimeout
-	dsn.Params["writeTimeout"] = cfg.WriteTimeout
-	dsn.Params["timeout"] = cfg.DialTimeout
-	return dsn, nil
+//	var dsn *dmysql.Config
+//	var err error
+//	host := net.JoinHostPort(hostName, port)
+//	dsnStr := fmt.Sprintf("%s:%s@tcp(%s)/%s", username, password, host, cfg.TLS)
+//	if dsn, err = dmysql.ParseDSN(dsnStr); err != nil {
+//		return nil, errors.Trace(err)
+//	}
+//
+//	// create test db used for parameter detection
+//	// Refer https://github.com/go-sql-driver/mysql#parameters
+//	if dsn.Params == nil {
+//		dsn.Params = make(map[string]string, 1)
+//	}
+//	if cfg.Timezone != "" {
+//		dsn.Params["time_zone"] = cfg.Timezone
+//	}
+//	dsn.Params["readTimeout"] = cfg.ReadTimeout
+//	dsn.Params["writeTimeout"] = cfg.WriteTimeout
+//	dsn.Params["timeout"] = cfg.DialTimeout
+//	return dsn, nil
 }
 
 // CheckIfBDRModeIsSupported checks if the downstream supports BDR mode.

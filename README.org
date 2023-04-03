@@ -1,0 +1,38 @@
+* Setup
+export PATH=/opt/go/bin:$PATH
+export PATH="$PATH:$(go env GOPATH)/bin"
+
+
+* Oracle
+export PATH=/opt/oracle/instantclient_21_4:$PATH
+export PATH=/opt/oracle/instantclient_21_9:$PATH
+export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_4:$LD_LIBRARY_PATH
+rlwrap sqlplus admin/1234Abcd@tidb2ora.cxmxisy1o2a2.us-east-1.rds.amazonaws.com:1521/dev
+
+* Changefeed
+#+BEGIN_SRC
+#!/bin/bash
+set -e
+
+# WARNING: This file was auto-generated. Do not edit!
+#          All your edit might be overwritten!
+DEPLOY_DIR=/home/admin/tidb/tidb-deploy/cdc-9300
+cd "${DEPLOY_DIR}" || exit 1
+exec /home/admin/workstation/tiflow/bin/cdc server \
+    --addr "0.0.0.0:9300" \
+    --advertise-addr "172.82.11.39:9300" \
+    --pd "http://172.82.11.39:2379" \
+    --data-dir="/home/admin/tidb/tidb-data/cdc-9300" \
+    --config /opt/ticdc/cdc.toml \
+    --log-level debug \
+    --log-file "/home/admin/tidb/tidb-deploy/cdc-9300/log/cdc.log" 2>> "/home/admin/tidb/tidb-deploy/cdc-9300/log/cdc_stderr.log"
+#+END_SRC
+
+#+BEGIN_SRC
+OhMyTiUP$ more /opt/ticdc/cdc.toml
+per-table-memory-quota = 20971520
+#+END_SRC
+
+#+BEGIN_SRC
+tiup cdc cli changefeed create --server=http://172.82.11.39:9300 --sink-uri="oracle://admin:1234Abcd@tidb2ora.cxmxisy1o2a2.us-east-1.rds.amazonaws.com:1521/dev?batch-dml-enable=false" --changefeed-id="repl-oracle" --config /opt/ticdc/changefeed-config.toml
+#+END_SRC
