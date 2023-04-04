@@ -34,5 +34,5 @@ per-table-memory-quota = 20971520
 #+END_SRC
 
 #+BEGIN_SRC
-tiup cdc cli changefeed create --server=http://172.82.11.39:9300 --sink-uri="oracle://admin:1234Abcd@tidb2ora.cxmxisy1o2a2.us-east-1.rds.amazonaws.com:1521/dev?batch-dml-enable=false" --changefeed-id="repl-oracle" --config /opt/ticdc/changefeed-config.toml
+tiup cdc cli changefeed create --server=http://172.82.11.39:9300 --sink-uri="oracle://admin:1234Abcd@tidb2ora.cxmxisy1o2a2.us-east-1.rds.amazonaws.com:1521/dev?batch-dml-enable=false&safe-mode=true" --changefeed-id="repl-oracle" --config /opt/ticdc/changefeed-config.toml
 #+END_SRC
