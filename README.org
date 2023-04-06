@@ -1,38 +1,103 @@
-* Setup
-export PATH=/opt/go/bin:$PATH
-export PATH="$PATH:$(go env GOPATH)/bin"
+* Overview
+  [[./png/tidb2ora_overview.png]]
+* TODO List
+** DDL
+   Please check all the ddl action type from the below list.  [[https://github.com/pingcap/parser/blob/master/model/ddl.go][modal definition]]
+As the first step, I would like to implement the below DDL action for demo.
+*** ActionCreateTable
+
+    | Type            | TiDB Data Type | Oracle Data Type | TiDB Max                                |
+    |-----------------+----------------+------------------+-----------------------------------------|
+    | TypeBit         | bit            | char(1)          |                                         |
+    | TypeBlob        | text           |                  | 65,535                                  |
+    | TypeDate        | date           |                  |                                         |
+    | TypeDatetime    | datetime       |                  |                                         |
+    | TypeUnspecified | unspecified    |                  |                                         |
+    | TypeNewDecimal  | decimal        |                  |                                         |
+    | TypeDouble      | double         |                  |                                         |
+    | TypeEnum        | enum           |                  |                                         |
+    | TypeFloat       | float          |                  |                                         |
+    | TypeGeometry    | geometry       |                  |                                         |
+    | TypeInt24       | mediumint      |                  |                                         |
+    | TypeJSON        | json           |                  |                                         |
+    | TypeLong        | int            | int              |                                         |
+    | TypeLonglong    | bigint         |                  |                                         |
+    | TypeLongBlob    | longtext       |                  | 4,294,967,295                           |
+    | TypeMediumBlob  | mediumtext     |                  | 16,777,215                              |
+    | TypeNull        | null           |                  |                                         |
+    | TypeSet         | set            |                  |                                         |
+    | TypeShort       | smallint       |                  |                                         |
+    | TypeString      | char           |                  | 255                                     |
+    | TypeDuration    | time           |                  |                                         |
+    | TypeTimestamp   | timestamp      |                  |                                         |
+    | TypeTiny        | tinyint        |                  | -128-127/0-255                          |
+    | TypeTinyBlob    | tinytext       |                  | 255                                     |
+    | TypeVarchar     | varchar        |                  | ascii:65535, utf8:21845, utf8mb4: 16383 |
+    | TypeVarString   | var_string     |                  |                                         |
+    | TypeYear        | year           |                  |                                         |
+*** ActionDropTable
+*** ActionAddColumn
+*** ActionDropColumn
+*** ActionAddForeignKey
+*** ActionDropForeignKey
+*** ActionTruncateTable
+*** ActionModifyColumn
+*** ActionRenameTable
+*** ActionAddTablePartition
+*** ActionDropTablePartition
+*** ActionAddPrimaryKey
+*** ActionDropPrimaryKey
+*** ActionAddColumns
+*** ActionDropColumns
+*** ActionRenameTables
+** DML
+*** Statement
+**** TODO insert
+**** TODO update
+**** TODO delete
+*** TODO batch
+* Source changed
+  [[./png/tidb2ora_001.png]]
+  [[./png/tidb2ora_002.png]]
+  [[./png/tidb2ora_003.png]]
+  [[./png/tidb2ora_004.png]]
+  [[./png/tidb2ora_005.png]]
+* Env setup
+** Setup
+ export PATH=/opt/go/bin:$PATH
+ export PATH="$PATH:$(go env GOPATH)/bin"
 
 
-* Oracle
-export PATH=/opt/oracle/instantclient_21_4:$PATH
-export PATH=/opt/oracle/instantclient_21_9:$PATH
-export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_4:$LD_LIBRARY_PATH
-rlwrap sqlplus admin/1234Abcd@tidb2ora.cxmxisy1o2a2.us-east-1.rds.amazonaws.com:1521/dev
+** Oracle
+ export PATH=/opt/oracle/instantclient_21_4:$PATH
+ export PATH=/opt/oracle/instantclient_21_9:$PATH
+ export LD_LIBRARY_PATH=/opt/oracle/instantclient_21_4:$LD_LIBRARY_PATH
+ rlwrap sqlplus admin/1234Abcd@tidb2ora.cxmxisy1o2a2.us-east-1.rds.amazonaws.com:1521/dev
 
-* Changefeed
-#+BEGIN_SRC
-#!/bin/bash
-set -e
+** Changefeed
+ #+BEGIN_SRC
+ #!/bin/bash
+ set -e
 
-# WARNING: This file was auto-generated. Do not edit!
-#          All your edit might be overwritten!
-DEPLOY_DIR=/home/admin/tidb/tidb-deploy/cdc-9300
-cd "${DEPLOY_DIR}" || exit 1
-exec /home/admin/workstation/tiflow/bin/cdc server \
-    --addr "0.0.0.0:9300" \
-    --advertise-addr "172.82.11.39:9300" \
-    --pd "http://172.82.11.39:2379" \
-    --data-dir="/home/admin/tidb/tidb-data/cdc-9300" \
-    --config /opt/ticdc/cdc.toml \
-    --log-level debug \
-    --log-file "/home/admin/tidb/tidb-deploy/cdc-9300/log/cdc.log" 2>> "/home/admin/tidb/tidb-deploy/cdc-9300/log/cdc_stderr.log"
-#+END_SRC
+ # WARNING: This file was auto-generated. Do not edit!
+ #          All your edit might be overwritten!
+ DEPLOY_DIR=/home/admin/tidb/tidb-deploy/cdc-9300
+ cd "${DEPLOY_DIR}" || exit 1
+ exec /home/admin/workstation/tiflow/bin/cdc server \
+     --addr "0.0.0.0:9300" \
+     --advertise-addr "172.82.11.39:9300" \
+     --pd "http://172.82.11.39:2379" \
+     --data-dir="/home/admin/tidb/tidb-data/cdc-9300" \
+     --config /opt/ticdc/cdc.toml \
+     --log-level debug \
+     --log-file "/home/admin/tidb/tidb-deploy/cdc-9300/log/cdc.log" 2>> "/home/admin/tidb/tidb-deploy/cdc-9300/log/cdc_stderr.log"
+ #+END_SRC
 
-#+BEGIN_SRC
-OhMyTiUP$ more /opt/ticdc/cdc.toml
-per-table-memory-quota = 20971520
-#+END_SRC
+ #+BEGIN_SRC
+ OhMyTiUP$ more /opt/ticdc/cdc.toml
+ per-table-memory-quota = 20971520
+ #+END_SRC
 
-#+BEGIN_SRC
-tiup cdc cli changefeed create --server=http://172.82.11.39:9300 --sink-uri="oracle://admin:1234Abcd@tidb2ora.cxmxisy1o2a2.us-east-1.rds.amazonaws.com:1521/dev?batch-dml-enable=false&safe-mode=true" --changefeed-id="repl-oracle" --config /opt/ticdc/changefeed-config.toml
-#+END_SRC
+ #+BEGIN_SRC
+ tiup cdc cli changefeed create --server=http://172.82.11.39:9300 --sink-uri="oracle://admin:1234Abcd@tidb2ora.cxmxisy1o2a2.us-east-1.rds.amazonaws.com:1521/dev?batch-dml-enable=false&safe-mode=true" --changefeed-id="repl-oracle" --config /opt/ticdc/changefeed-config.toml
+ #+END_SRC
