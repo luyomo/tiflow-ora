@@ -155,9 +155,9 @@ func (c *Config) Apply(
 //	if err = getBatchReplaceEnable(query, &c.BatchReplaceEnabled, &c.BatchReplaceSize); err != nil {
 //		return err
 //	}
-//	if err = getSafeMode(query, &c.SafeMode); err != nil {
-//		return err
-//	}
+	if err = getSafeMode(query, &c.SafeMode); err != nil {
+		return err
+	}
 	if err = getTimezone(ctx, query, &c.Timezone); err != nil {
 		return err
 	}

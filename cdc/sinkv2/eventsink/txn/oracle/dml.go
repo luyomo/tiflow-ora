@@ -48,9 +48,11 @@ func prepareUpdate(quoteTable string, preCols, cols []*model.Column, forceReplic
 	}
 	for i, column := range columnNames {
 		if i == len(columnNames)-1 {
-			builder.WriteString("`" + quotes.EscapeName(column) + "`=?")
+			// builder.WriteString("`" + quotes.EscapeName(column) + "`=?")
+			builder.WriteString(quotes.EscapeName(column) + "=?")
 		} else {
-			builder.WriteString("`" + quotes.EscapeName(column) + "`=?,")
+			// builder.WriteString("`" + quotes.EscapeName(column) + "`=?,")
+			builder.WriteString(quotes.EscapeName(column) + "=?,")
 		}
 	}
 
@@ -64,13 +66,15 @@ func prepareUpdate(quoteTable string, preCols, cols []*model.Column, forceReplic
 			builder.WriteString(" AND ")
 		}
 		if wargs[i] == nil {
-			builder.WriteString(quotes.QuoteName(colNames[i]) + " IS NULL")
+			//builder.WriteString(quotes.QuoteName(colNames[i]) + " IS NULL")
+			builder.WriteString(colNames[i] + " IS NULL")
 		} else {
-			builder.WriteString(quotes.QuoteName(colNames[i]) + "=?")
+			//builder.WriteString(quotes.QuoteName(colNames[i]) + "=?")
+			builder.WriteString(colNames[i] + "=?")
 			args = append(args, wargs[i])
 		}
 	}
-	builder.WriteString(" LIMIT 1;")
+//	builder.WriteString(" LIMIT 1;")
 	sql := builder.String()
 	return sql, args
 }
@@ -103,11 +107,11 @@ func prepareReplace(
 	colList := "(" + buildColumnList(columnNames) + ")"
 	log.Info("Insert colList", zap.String("insert", colList))
 	log.Info("translateToInsert", zap.Bool("insert", translateToInsert))
-	if translateToInsert {
+	//if translateToInsert {
 		builder.WriteString("INSERT INTO " + quoteTable + colList + " VALUES ")
-	} else {
-		builder.WriteString("REPLACE INTO " + quoteTable + colList + " VALUES ")
-	}
+	//} else {
+	//	builder.WriteString("REPLACE INTO " + quoteTable + colList + " VALUES ")
+	//}
 	if appendPlaceHolder {
 		builder.WriteString("(" + placeHolder(len(columnNames)) + ");")
 	}
@@ -184,19 +188,24 @@ func prepareDelete(quoteTable string, cols []*model.Column, forceReplicate bool)
 	if len(wargs) == 0 {
 		return "", nil
 	}
+	log.Info("prepareDelete:", zap.String("colNames", fmt.Sprintf("%#v", colNames)), zap.String("wargs", fmt.Sprintf("%#v",  wargs)) )
 	args := make([]interface{}, 0, len(wargs))
+	idx := 1
 	for i := 0; i < len(colNames); i++ {
 		if i > 0 {
 			builder.WriteString(" AND ")
 		}
 		if wargs[i] == nil {
-			builder.WriteString(quotes.QuoteName(colNames[i]) + " IS NULL")
+			//builder.WriteString(quotes.QuoteName(colNames[i]) + " IS NULL")
+			builder.WriteString(colNames[i] + " IS NULL")
 		} else {
-			builder.WriteString(quotes.QuoteName(colNames[i]) + " = ?")
+			//builder.WriteString(quotes.QuoteName(colNames[i]) + " = ?")
+			builder.WriteString(colNames[i] + " = " + fmt.Sprintf(":%d", idx+1))
 			args = append(args, wargs[i])
+			idx = idx + 1
 		}
 	}
-	builder.WriteString(" LIMIT 1;")
+//	builder.WriteString(" LIMIT 1;")
 	sql := builder.String()
 	return sql, args
 }

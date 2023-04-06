@@ -88,6 +88,7 @@ func NewOracleBackends(
 	if err != nil {
 		return nil, err
 	}
+	log.Info("oracle connection string in the dml", zap.String("oracle", dsnStr))
 
 	db, err := dbConnFactory(ctx, dsnStr)
 	if err != nil {
@@ -451,6 +452,7 @@ func (s *oracleBackend) prepareDMLs() *preparedDMLs {
 
 	// translateToInsert control the update and insert behavior
 	// we only translate into insert when old value is enabled and safe mode is disabled
+	log.Info("prepareDMLs", zap.Bool("EnableOldValue", s.cfg.EnableOldValue), zap.Bool("SafeMode", s.cfg.SafeMode))
 	translateToInsert := s.cfg.EnableOldValue && !s.cfg.SafeMode
 
 	rowCount := 0
@@ -506,6 +508,7 @@ func (s *oracleBackend) prepareDMLs() *preparedDMLs {
 			var args []interface{}
 			// If the old value is enabled, is not in safe mode and is an update event, then translate to UPDATE.
 			// NOTICE: Only update events with the old value feature enabled will have both columns and preColumns.
+			log.Info("prepareDMLs:", zap.Bool("translateToInsert",translateToInsert ), zap.Int("len(row.PreColumns)", len(row.PreColumns)), zap.Int("en(row.Columns)", len(row.Columns)) )
 			if translateToInsert && len(row.PreColumns) != 0 && len(row.Columns) != 0 {
 				flushCacheDMLs()
 				query, args = prepareUpdate(quoteTable, row.PreColumns, row.Columns, s.cfg.ForceReplicate)
@@ -549,6 +552,16 @@ func (s *oracleBackend) prepareDMLs() *preparedDMLs {
 						replaces[query] = append(replaces[query], args)
 					}
 				} else {
+					// query, args = prepareReplace(quoteTable, row.Columns, true /* appendPlaceHolder */, translateToInsert)
+					// if query != "" {
+					// 	sqls = append(sqls, query)
+					// 	values = append(values, args)
+					// }
+				        query, args = prepareDelete(quoteTable, row.Columns, s.cfg.ForceReplicate)
+				        if query != "" {
+				        	sqls = append(sqls, query)
+				        	values = append(values, args)
+				        }
 					query, args = prepareReplace(quoteTable, row.Columns, true /* appendPlaceHolder */, translateToInsert)
 					if query != "" {
 						sqls = append(sqls, query)
